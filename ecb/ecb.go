@@ -1,16 +1,20 @@
 package ecb
 
+import "crypto/cipher"
+
 type ECB struct {
-	block     crypto.Block
+	block     cipher.Block
 	blockSize int
+
+	encrypt bool
 }
 
-func (e *ECB) BlockSize() {
+func (e *ECB) BlockSize() int {
 	return e.blockSize
 }
 
 func (e *ECB) CryptBlocks(dst, src []byte) {
-	if len(src) % e.blockSize {
+	if len(src)%e.blockSize != 0 {
 		panic("ecb: input not full blocks")
 	}
 	if len(dst) < len(src) {
@@ -20,13 +24,31 @@ func (e *ECB) CryptBlocks(dst, src []byte) {
 		return
 	}
 
+	for i := 0; i < len(dst)/e.blockSize; i++ {
+		if e.encrypt {
+			e.block.Encrypt(src[i*e.blockSize:], dst[i*e.blockSize:])
+		} else {
+			e.block.Decrypt(src[i*e.blockSize:], dst[i*e.blockSize:])
+		}
+	}
 }
 
-var _ crypto.BlockMode = &ECB{}
-
-func New(block crypto.Block) *ECB {
+func NewEncrypter(block cipher.Block) *ECB {
 	return &ECB{
 		block:     block,
 		blockSize: block.BlockSize(),
+
+		encrypt: true,
 	}
 }
+
+func NewDecrypter(block cipher.Block) *ECB {
+	return &ECB{
+		block:     block,
+		blockSize: block.BlockSize(),
+
+		encrypt: false,
+	}
+}
+
+var _ cipher.BlockMode = &ECB{}
